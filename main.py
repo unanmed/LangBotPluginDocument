@@ -31,7 +31,7 @@ class LangBotPluginDocument(BasePlugin):
         self.retriever = self.vector_store.as_retriever(search_kwargs={ "k": 3 })
     
     def parse_documents(self):
-        chunker = SemanticChunker(self.embeddings)
+        chunker = SemanticChunker(self.embeddings, sentence_split_regex=r'(?<=[。！？])')
         for file in tqdm(self.files, desc="Parsing documents..."):
             path = os.path.join(self.current_dir, 'docs', file)
             loader = UnstructuredMarkdownLoader(path)
