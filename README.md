@@ -33,10 +33,16 @@
 配置完成 [LangBot](https://github.com/RockChinQ/LangBot) 主程序后使用管理员账号向机器人发送命令即可安装：
 
 ```
-!plugin get <你的插件发布仓库地址>
+!plugin get https://github.com/unanmed/LangBotPluginDocument
 ```
 或查看详细的[插件安装说明](https://docs.langbot.app/plugin/plugin-intro.html#%E6%8F%92%E4%BB%B6%E7%94%A8%E6%B3%95)
 
 ## 使用
 
 <!-- 插件开发者自行填写插件使用说明 -->
+
+打开 `config.json`，填写文档提示词和用户问题提示词。
+
+然后将你的文档放入 docs 文件夹，并在 `config.json` 里面填写要读取的文件，重启机器人即可，之后的聊天中，机器人将会自动引用文档中的内容，并参考文档给出回复。
+
+由于在启动时会从云端加载模型，并对文档索引，因此该插件会显著提高机器人启动时间，请耐心等待。不过加载完毕后，此插件将几乎不会消耗性能，可以放心使用。

@@ -1,0 +1,8 @@
+tqdm
+langchain
+langchain_community
+langchain_experimental
+langchain_huggingface
+sentence-transformers
+unstructured
+faiss_cpu

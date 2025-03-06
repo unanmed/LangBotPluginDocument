@@ -1,49 +1,69 @@
+import json
+import os
+from tqdm import tqdm
 from pkg.plugin.context import register, handler, llm_func, BasePlugin, APIHost, EventContext
 from pkg.plugin.events import *  # 导入事件类
+from langchain_community.document_loaders import UnstructuredMarkdownLoader
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 
-
-# 注册插件
-@register(name="Hello", description="hello world", version="0.1", author="RockChinQ")
-class MyPlugin(BasePlugin):
-
-    # 插件加载时触发
+@register(name="LangBotPluginDocument", description="提供文档检索增强（RAG）功能，可以将机器人部署为文档机器人", version="0.1", author="AncTe(unanmed)")
+class LangBotPluginDocument(BasePlugin):
     def __init__(self, host: APIHost):
-        pass
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        with open(os.path.join(self.current_dir, "config.json"), 'r', encoding='utf-8') as file:
+            data = json.load(file)
+            
+        self.files = data["files"]
+        self.reference_prompt = data["reference_prompt"]
+        self.question_prompt = data["question_prompt"]
+        self.texts = []
+        
+        print("Fetching models...")
+        self.embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
+        
+        self.parse_documents()
+        
+        print("Vectoring...")
+        self.vector_store = FAISS.from_documents(self.texts, self.embeddings)
+        self.retriever = self.vector_store.as_retriever(search_kwargs={ "k": 3 })
+    
+    def parse_documents(self):
+        chunker = SemanticChunker(self.embeddings)
+        for file in tqdm(self.files, desc="Parsing documents..."):
+            path = os.path.join(self.current_dir, 'docs', file)
+            loader = UnstructuredMarkdownLoader(path)
+            documents = loader.load()
+            texts = chunker.split_documents(documents)
+            self.texts.extend(texts)
 
-    # 异步初始化
     async def initialize(self):
         pass
+    
+    def handle_RAG(self, message):
+        print("Processing RAG")
+        docs = self.vector_store.similarity_search(message)
+        context = "\n".join([doc.page_content for doc in docs])
+        return context
 
-    # 当收到个人消息时触发
     @handler(PersonNormalMessageReceived)
     async def person_normal_message_received(self, ctx: EventContext):
-        msg = ctx.event.text_message  # 这里的 event 即为 PersonNormalMessageReceived 的对象
-        if msg == "hello":  # 如果消息为hello
+        msg = ctx.event.text_message
+        context = self.handle_RAG(msg)
+        handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
+        ctx.event.alter = handled
+        
 
-            # 输出调试信息
-            self.ap.logger.debug("hello, {}".format(ctx.event.sender_id))
-
-            # 回复消息 "hello, <发送者id>!"
-            ctx.add_return("reply", ["hello, {}!".format(ctx.event.sender_id)])
-
-            # 阻止该事件默认行为（向接口获取回复）
-            ctx.prevent_default()
-
-    # 当收到群消息时触发
     @handler(GroupNormalMessageReceived)
     async def group_normal_message_received(self, ctx: EventContext):
-        msg = ctx.event.text_message  # 这里的 event 即为 GroupNormalMessageReceived 的对象
-        if msg == "hello":  # 如果消息为hello
+        msg = ctx.event.text_message
+        context = self.handle_RAG(msg)
+        handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
+        ctx.event.alter = handled
+        
 
-            # 输出调试信息
-            self.ap.logger.debug("hello, {}".format(ctx.event.sender_id))
-
-            # 回复消息 "hello, everyone!"
-            ctx.add_return("reply", ["hello, everyone!"])
-
-            # 阻止该事件默认行为（向接口获取回复）
-            ctx.prevent_default()
-
-    # 插件卸载时触发
     def __del__(self):
+        self.texts.clear()
         pass

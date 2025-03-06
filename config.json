@@ -1,0 +1,15 @@
+{
+    "reference_prompt": "现在用户提出了问题，如果用户没有明确提出不参考文档，请参考以下内容回答，如果仅靠以下内容无法获取正确答案，请回复“信息不足，请换个问法”：",
+    "question_prompt": "用户问题：",
+    "files": [
+        "api.md",
+        "editor.md",
+        "element.md",
+        "event.md",
+        "index.md",
+        "instruction.md",
+        "personalization.md",
+        "script.md",
+        "start.md"
+    ]
+}
