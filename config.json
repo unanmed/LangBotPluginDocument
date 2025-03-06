@@ -13,5 +13,5 @@
         "start.md"
     ],
     "debug": true,
-    "model_name": "microsoft/codebert-base"
+    "model_name": "BAAI/bge-large-zh-v1.5"
 }
