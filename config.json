@@ -12,6 +12,6 @@
         "script.md",
         "start.md"
     ],
-    "debug": true,
+    "debug": false,
     "model_name": "BAAI/bge-large-zh-v1.5"
 }
