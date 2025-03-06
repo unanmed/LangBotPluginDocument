@@ -19,10 +19,11 @@ class LangBotPluginDocument(BasePlugin):
         self.files = data["files"]
         self.reference_prompt = data["reference_prompt"]
         self.question_prompt = data["question_prompt"]
+        self.debug = data["debug"]
         self.texts = []
         
         print("Fetching models...")
-        self.embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
+        self.embeddings = HuggingFaceEmbeddings(model_name='BAAI/bge-large-zh-v1.5')
         
         self.parse_documents()
         
@@ -32,7 +33,7 @@ class LangBotPluginDocument(BasePlugin):
     
     def parse_documents(self):
         chunker = SemanticChunker(self.embeddings, sentence_split_regex=r'(?<=[。！？])')
-        for file in tqdm(self.files, desc="Parsing documents..."):
+        for file in tqdm(self.files, desc="Parsing documents"):
             path = os.path.join(self.current_dir, 'docs', file)
             loader = UnstructuredMarkdownLoader(path)
             documents = loader.load()
@@ -54,6 +55,8 @@ class LangBotPluginDocument(BasePlugin):
         context = self.handle_RAG(msg)
         handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
         ctx.event.alter = handled
+        if self.debug:
+            print(handled)
         
 
     @handler(GroupNormalMessageReceived)
@@ -62,7 +65,8 @@ class LangBotPluginDocument(BasePlugin):
         context = self.handle_RAG(msg)
         handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
         ctx.event.alter = handled
-        
+        if self.debug:
+            print(handled)
 
     def __del__(self):
         self.texts.clear()

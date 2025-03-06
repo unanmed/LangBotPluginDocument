@@ -11,5 +11,6 @@
         "personalization.md",
         "script.md",
         "start.md"
-    ]
+    ],
+    "debug": false
 }
