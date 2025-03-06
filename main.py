@@ -20,10 +20,11 @@ class LangBotPluginDocument(BasePlugin):
         self.reference_prompt = data["reference_prompt"]
         self.question_prompt = data["question_prompt"]
         self.debug = data["debug"]
+        self.model_name = data["model_name"]
         self.texts = []
         
         print("Fetching models...")
-        self.embeddings = HuggingFaceEmbeddings(model_name='BAAI/bge-large-zh-v1.5')
+        self.embeddings = HuggingFaceEmbeddings(model_name=self.model_name)
         
         self.parse_documents()
         

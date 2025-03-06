@@ -12,5 +12,6 @@
         "script.md",
         "start.md"
     ],
-    "debug": false
+    "debug": true,
+    "model_name": "microsoft/codebert-base"
 }

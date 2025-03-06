@@ -21,7 +21,14 @@
 
 由于在启动时会从云端加载模型，并对文档索引，因此该插件会显著提高机器人启动时间，请耐心等待。不过加载完毕后，此插件将几乎不会消耗性能，可以放心使用。
 
-注意，模型会从 HuggingFace 加载，需要魔法上网。如果没有办法魔法上网，可以在镜像站上下载到本地后，修改 `main.py` 第 25 行的参数，将你的模型路径写进去。
+可以手动修改 `config.json` 中的 `model_name` 属性来修改 RAG 嵌入模型。
+
+一些推荐模型：
+
+- 中文文档：`BAAI/bge-m3`, `BAAI/bge-large-zh-v1.5`
+- 含有代码的文档：`microsoft/codebert-base`, `Salesforce/codet5-base`
+
+注意，模型会从 HuggingFace 加载，需要科学上网。如果没有办法科学上网，可以在镜像站上下载到本地后，修改 `config.json` 中的 `model_name` 属性为你的模型本地路径。
 
 ## 调试
 
