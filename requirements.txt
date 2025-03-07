@@ -6,3 +6,7 @@ langchain_huggingface
 sentence-transformers
 unstructured
 faiss_cpu
+tree-sitter
+tree-sitter-typescript
+tree-sitter-javascript
+tree-sitter-python
