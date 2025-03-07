@@ -49,6 +49,7 @@ class LangBotPluginDocument(BasePlugin):
             text += doc.metadata.get("prev_context", "")
             text += doc.page_content
             text += doc.metadata.get("next_context", "")
+            text += "\n---\n"
 
         return text
 

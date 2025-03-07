@@ -127,8 +127,6 @@ class DocumentSplitter(TextSplitter):
                     splitted[-1].metadata["next_context"] = next_context
 
                 chunks.extend(splitted)
-                
-        print(chunks)
 
         return chunks
 
