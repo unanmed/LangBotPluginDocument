@@ -10,3 +10,4 @@ tree-sitter
 tree-sitter-typescript
 tree-sitter-javascript
 tree-sitter-python
+tree-sitter-html

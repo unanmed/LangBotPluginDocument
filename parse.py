@@ -1,9 +1,8 @@
 from pathlib import Path
-from tqdm import tqdm
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
 from langchain_community.vectorstores import FAISS
-from .loader import CodeAwareMDLoader
+from .loader import CodeAwareMDLoader, CodeLoader
 from .splitter import DocumentSplitter
 from .retriever import HybridRetriever
 
@@ -16,6 +15,7 @@ class DocumentParser:
     
     text_store: FAISS = None
     code_store: FAISS = None
+    code_comment_store: FAISS = None
     
     retriever: HybridRetriever = None
     
@@ -53,12 +53,41 @@ class DocumentParser:
         if ext == ".md":
             loader = CodeAwareMDLoader(path)
             self.docs.extend(self.splitter.split_documents(loader.load(), mode))
+        
+        else:
+            loader = CodeLoader(path)
+            self.docs.extend(self.splitter.split_documents(loader.load(), "code-only"))
             
     def parse_documents(self):
-        self.text_store = FAISS.from_documents([doc for doc in self.docs if not doc.metadata.get("is_code", False)], self.text_model)
-        self.code_store = FAISS.from_documents([doc for doc in self.docs if doc.metadata.get("is_code", False)], self.code_model)
+        text_docs = [doc for doc in self.docs if not doc.metadata.get("is_code", False)]
+        code_docs = [doc for doc in self.docs if doc.metadata.get("is_code", False)]
+        
+        code_comment_docs: list[Document] = []
+        for doc in code_docs:
+            comment = doc.metadata.get("comments")
+            if comment and comment.strip():
+                metadata = { **doc.metadata, "code": doc.page_content }
+                metadata.pop("comments")
+                code_comment_docs.append(Document(page_content=comment, metadata=metadata))
+        
+        # print("\n===================================\n".join([f"{doc.page_content}\n-------------\n{doc.metadata.get("code")}" for doc in code_comment_docs]))
+        
+        if text_docs:
+            self.text_store = FAISS.from_documents(text_docs, self.text_model)
+        if code_docs:
+            self.code_store = FAISS.from_documents(code_docs, self.code_model)
+        if code_comment_docs:
+            self.code_comment_store = FAISS.from_documents(code_comment_docs, self.text_model)
 
-        self.retriever = HybridRetriever(text_retriever=self.text_store.as_retriever(), code_retriever=self.code_store.as_retriever())
+        text_retriever = self.text_store.as_retriever() if self.text_store else None
+        code_retriever = self.code_store.as_retriever() if self.code_store else None
+        code_comment_retriever = self.code_comment_store.as_retriever() if self.code_comment_store else None
+
+        self.retriever = HybridRetriever(
+            text_retriever=text_retriever,
+            code_retriever=code_retriever,
+            code_comment_retriever=code_comment_retriever
+        )
 
     def search(self, message: str) -> list[Document]:
         return self.retriever.invoke(message)

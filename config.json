@@ -3,20 +3,12 @@
     "question_prompt": "用户问题：",
     "text_model": "BAAI/bge-large-zh-v1.5",
     "code_model": "microsoft/codebert-base",
-    "mode": "text-code",
+    "mode": "text-only",
     "chunk_size": 500,
     "chunk_overlap": 100,
     "code_context_length": 1,
     "debug": false,
     "files": [
-        "api.md",
-        "editor.md",
-        "element.md",
-        "event.md",
-        "index.md",
-        "instruction.md",
-        "personalization.md",
-        "script.md",
-        "start.md"
+        "example.md"
     ]
 }

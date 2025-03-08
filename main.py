@@ -44,12 +44,12 @@ class LangBotPluginDocument(BasePlugin):
     def handle_RAG(self, message):
         print("Processing RAG")
         docs = self.parser.search(message)
-        text = ""
-        for doc in docs:
-            text += doc.metadata.get("prev_context", "")
-            text += doc.page_content
-            text += doc.metadata.get("next_context", "")
-            text += "\n---\n"
+        text = "\n---\n".join(
+            f"{doc.metadata.get('prev_context', '')}\n"
+            f"{doc.metadata.get("code") or doc.page_content}\n"
+            f"{doc.metadata.get('next_context', '')}"
+            for doc in docs
+        )
 
         return text
 
