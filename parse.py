@@ -72,12 +72,16 @@ class DocumentParser:
         
         # print("\n===================================\n".join([f"{doc.page_content}\n-------------\n{doc.metadata.get("code")}" for doc in code_comment_docs]))
         
-        if text_docs:
-            self.text_store = FAISS.from_documents(text_docs, self.text_model)
-        if code_docs:
-            self.code_store = FAISS.from_documents(code_docs, self.code_model)
-        if code_comment_docs:
-            self.code_comment_store = FAISS.from_documents(code_comment_docs, self.text_model)
+        if not text_docs:
+            text_docs = [Document(page_content="")]
+        if not code_docs:
+            code_docs = [Document(page_content="")]
+        if not code_comment_docs:
+            code_comment_docs = [Document(page_content="")]
+        
+        self.text_store = FAISS.from_documents(text_docs, self.text_model)
+        self.code_store = FAISS.from_documents(code_docs, self.code_model)
+        self.code_comment_store = FAISS.from_documents(code_comment_docs, self.text_model)
 
         text_retriever = self.text_store.as_retriever() if self.text_store else None
         code_retriever = self.code_store.as_retriever() if self.code_store else None
