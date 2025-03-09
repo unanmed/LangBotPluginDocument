@@ -40,11 +40,11 @@ class DocumentParser:
         need_text = "text-only" in modes or "text-code" in modes
         need_code = "code-only" in modes or "text-code" in modes
 
-        # 加载模型
-        if need_text:
-            self.text_model = HuggingFaceEmbeddings(model_name=self.config["text_model"])
-        if need_code:
-            self.code_model = HuggingFaceEmbeddings(model_name=self.config["code_model"])
+        # 加载模型，暂时两个模型都加载，之后再优化为按需加载
+        # if need_text:
+        self.text_model = HuggingFaceEmbeddings(model_name=self.config["text_model"])
+        # if need_code:
+        self.code_model = HuggingFaceEmbeddings(model_name=self.config["code_model"])
             
     def load_document(self, doc_path: str, mode: str):
         path = Path(doc_path)
