@@ -130,3 +130,5 @@ dmypy.json
 
 docs/*
 !docs/example.md
+indices.json
+data

@@ -14,9 +14,21 @@ class LangBotPluginDocument(BasePlugin):
     
     def __init__(self, host: APIHost):
         print("=============== Loading LangBot Document Plugin ===============")
+        os.makedirs(os.path.join(self.current_dir, "data"), exist_ok=True)
+        os.makedirs(os.path.join(self.current_dir, "data/text"), exist_ok=True)
+        os.makedirs(os.path.join(self.current_dir, "data/code"), exist_ok=True)
+        os.makedirs(os.path.join(self.current_dir, "data/comment"), exist_ok=True)
+        indices_path = os.path.join(self.current_dir, "indices.json")
+        if not os.path.exists(indices_path):
+            with open(indices_path, 'w') as f:
+                f.write("{}")
+        
         with open(os.path.join(self.current_dir, "config.json"), 'r', encoding='utf-8') as file:
             data = json.load(file)
-        self.parser = DocumentParser(data)
+        with open(indices_path, 'r', encoding='utf-8') as indices:
+            indices_cache = json.load(indices)
+            
+        self.parser = DocumentParser(data, indices_cache, self.current_dir)
         
         self.reference_prompt = data["reference_prompt"]
         self.question_prompt = data["question_prompt"]
@@ -26,15 +38,16 @@ class LangBotPluginDocument(BasePlugin):
         
         self.parser.fetch_models()
         
-        for path in tqdm(data["files"], desc="Loading documents"):
+        for path in tqdm(data["files"], desc="Loading and parsing documents"):
             if isinstance(path, str):
                 self.parser.load_document(os.path.join(self.current_dir, "docs", path), data["mode"])
             else:
                 self.parser.load_document(os.path.join(self.current_dir, "docs", path["path"]), path["mode"])
-
-        print("Vectoring...")
         
-        self.parser.parse_documents()
+        cache = self.parser.merge_documents()
+        
+        with open(indices_path, 'w', encoding='utf-8') as indices:
+            json.dump(cache, indices, ensure_ascii=False, indent=4)
 
         print("=============== Loaded LangBot Document Plugin ===============")
 
