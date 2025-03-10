@@ -5,11 +5,9 @@ from langchain.schema import Document
 from typing import List
 from .splitter import languages_map
 
-def extract_code_blocks(md_text):
-    # 匹配带语言标签的代码块
-    pattern = r'```([a-zA-Z0-9+]+)\n(.*?)```'
-    matches = re.findall(pattern, md_text, re.DOTALL)
-    return [(lang.lower().strip(), code.strip()) for lang, code in matches]
+def extract_language(line: str) -> str:
+    match = re.match(r"^```(\w+)", line.strip())
+    return match.group(1) if match else ""
 
 class CodeAwareMDLoader(BaseLoader):
     def __init__(self, file_path: str):
@@ -52,7 +50,7 @@ class CodeAwareMDLoader(BaseLoader):
                     in_code = False
                 
                 else:
-                    now_lang = stripped[3:].strip()
+                    now_lang = extract_language(stripped).strip()
                     append_document()
                     in_code = True
                 
