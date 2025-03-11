@@ -15,7 +15,6 @@ class LangBotPluginDocument(BasePlugin):
     
     def __init__(self, host: APIHost):
         print("=============== Loading LangBot Document Plugin ===============")
-        os.makedirs(os.path.join(self.current_dir, "log"), exist_ok=True)
         os.makedirs(os.path.join(self.current_dir, "data"), exist_ok=True)
         os.makedirs(os.path.join(self.current_dir, "data/text"), exist_ok=True)
         os.makedirs(os.path.join(self.current_dir, "data/code"), exist_ok=True)
