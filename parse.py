@@ -170,9 +170,9 @@ class DocumentParser:
         if not code_comment_docs:
             code_comment_docs = [Document(page_content="")]
             
-        text_store = FAISS.from_documents(text_docs, self.text_model, metric="ip")
-        code_store = FAISS.from_documents(code_docs, self.code_model, metric="ip")
-        comment_store = FAISS.from_documents(code_comment_docs, self.text_model, metric="ip")
+        text_store = FAISS.from_documents(text_docs, self.text_model)
+        code_store = FAISS.from_documents(code_docs, self.code_model)
+        comment_store = FAISS.from_documents(code_comment_docs, self.text_model)
         
         return text_store, code_store, comment_store
             
