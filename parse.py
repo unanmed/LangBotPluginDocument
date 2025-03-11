@@ -125,11 +125,11 @@ class DocumentParser:
         if self.check_cache(doc_path):
             # 有缓存，直接从缓存加载
             indices = self.indices_cache.get(doc_path)
-            if indices["text_path"]:
+            if indices["text_path"] and os.path.exists(indices["text_path"]):
                 self.doc_text_indices.append(FAISS.load_local(indices["text_path"], self.text_model, "index", allow_dangerous_deserialization=True))
-            if indices["code_path"]:
+            if indices["code_path"] and os.path.exists(indices["code_path"]):
                 self.doc_code_indices.append(FAISS.load_local(indices["code_path"], self.code_model, "index", allow_dangerous_deserialization=True))
-            if indices["comment_path"]:
+            if indices["comment_path"] and os.path.exists(indices["comment_path"]):
                 self.doc_comment_indices.append(FAISS.load_local(indices["comment_path"], self.text_model, "index", allow_dangerous_deserialization=True))
             self.deleted_docs.remove(doc_path)
             
