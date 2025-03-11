@@ -132,3 +132,4 @@ docs/*
 !docs/example.md
 indices.json
 data
+user_queries.log

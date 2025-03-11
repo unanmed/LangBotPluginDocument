@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 from tqdm import tqdm
 from pkg.plugin.context import register, handler, llm_func, BasePlugin, APIHost, EventContext
 from pkg.plugin.events import *  # 导入事件类
@@ -14,14 +15,23 @@ class LangBotPluginDocument(BasePlugin):
     
     def __init__(self, host: APIHost):
         print("=============== Loading LangBot Document Plugin ===============")
+        os.makedirs(os.path.join(self.current_dir, "log"), exist_ok=True)
         os.makedirs(os.path.join(self.current_dir, "data"), exist_ok=True)
         os.makedirs(os.path.join(self.current_dir, "data/text"), exist_ok=True)
         os.makedirs(os.path.join(self.current_dir, "data/code"), exist_ok=True)
         os.makedirs(os.path.join(self.current_dir, "data/comment"), exist_ok=True)
+        
         indices_path = os.path.join(self.current_dir, "indices.json")
+        log_path = os.path.join(self.current_dir, "user_queries.log")
+        
         if not os.path.exists(indices_path):
             with open(indices_path, 'w') as f:
                 f.write("{}")
+        if not os.path.exists(log_path):
+            with open(log_path, 'w') as f:
+                pass
+        
+        self.log_path = log_path
         
         with open(os.path.join(self.current_dir, "config.json"), 'r', encoding='utf-8') as file:
             data = json.load(file)
@@ -33,6 +43,7 @@ class LangBotPluginDocument(BasePlugin):
         self.reference_prompt = data["reference_prompt"]
         self.question_prompt = data["question_prompt"]
         self.debug = data["debug"]
+        self.log_queries = data["log_queries"]
         
         print("Fetching models...")
         
@@ -68,6 +79,10 @@ class LangBotPluginDocument(BasePlugin):
     
     def handle_message(self, msg: str):
         handled = msg.strip()
+        
+        if self.log_queries:
+            with open(self.log_path, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Query: {msg}\n")
         
         if msg.startswith("*raw"):
             handled = f"{self.question_prompt}{msg[4:]}"

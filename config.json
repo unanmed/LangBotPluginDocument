@@ -8,6 +8,7 @@
     "chunk_overlap": 100,
     "code_context_length": 1,
     "debug": false,
+    "log_queries": false,
     "files": [
         "example.md"
     ]
