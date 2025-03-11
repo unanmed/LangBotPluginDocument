@@ -45,6 +45,10 @@ f"{reference_prompt}\n{查询到的文档内容}\n{question_prompt}{用户提问
     -   `mode`: 该文档的 RAG 方案，不填时自动使用默认。注意，如果这个文件不是 md 文档，那么会使用 `code-only` 模式。
     -   `path`: 该文档的路径。
 
+## 用户提问
+
+在用户提问时，如果提问内容以 `*raw` 开头，那么本次提问将会不参考文档（不进行文档检索）。
+
 ## 添加代码种类
 
 插件内置了 `python` `typescript` `tsx` `javascript` `jsx` `html` 等语言的代码解析功能，如果需要添加自己的代码语言，例如 `rust` `java` 等，可以手动安装对应的 `pip` 包，可以在[此处](https://github.com/orgs/tree-sitter/repositories)查看对应语言的包名，安装后在 `splitter.py` 中参考注释操作即可。

@@ -65,12 +65,22 @@ class LangBotPluginDocument(BasePlugin):
         )
 
         return text
+    
+    def handle_message(self, msg: str):
+        handled = msg.strip()
+        
+        if msg.startswith("*raw"):
+            handled = f"{self.question_prompt}{msg[4:]}"
+        else:
+            context = self.handle_RAG(msg)
+            handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
+            
+        return handled
 
     @handler(PersonNormalMessageReceived)
     async def person_normal_message_received(self, ctx: EventContext):
-        msg = ctx.event.text_message
-        context = self.handle_RAG(msg)
-        handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
+        msg = ctx.event.text_message.strip()
+        handled = self.handle_message(msg)
         ctx.event.alter = handled
         if self.debug:
             print(handled)
@@ -78,9 +88,8 @@ class LangBotPluginDocument(BasePlugin):
 
     @handler(GroupNormalMessageReceived)
     async def group_normal_message_received(self, ctx: EventContext):
-        msg = ctx.event.text_message
-        context = self.handle_RAG(msg)
-        handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
+        msg = ctx.event.text_message.strip()
+        handled = self.handle_message(msg)
         ctx.event.alter = handled
         if self.debug:
             print(handled)
