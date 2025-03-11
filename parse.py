@@ -127,7 +127,7 @@ class DocumentParser:
             if indices["text_path"]:
                 self.doc_text_indices.append(FAISS.load_local(indices["text_path"], self.text_model, "index", allow_dangerous_deserialization=True))
             if indices["code_path"]:
-                self.doc_code_indices.append(FAISS.load_local(indices["code_path"], self.text_model, "index", allow_dangerous_deserialization=True))
+                self.doc_code_indices.append(FAISS.load_local(indices["code_path"], self.code_model, "index", allow_dangerous_deserialization=True))
             if indices["comment_path"]:
                 self.doc_comment_indices.append(FAISS.load_local(indices["comment_path"], self.text_model, "index", allow_dangerous_deserialization=True))
             self.deleted_docs.remove(doc_path)
