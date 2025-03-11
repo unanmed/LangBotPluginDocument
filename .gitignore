@@ -133,3 +133,4 @@ docs/*
 indices.json
 data
 user_queries.log
+extensions/class_model

@@ -87,7 +87,10 @@ class LangBotPluginDocument(BasePlugin):
             handled = f"{self.question_prompt}{msg[4:]}"
         else:
             context = self.handle_RAG(msg)
-            handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
+            if context.strip():
+                handled = f"{self.reference_prompt}\n{context}\n{self.question_prompt}{msg}"
+            else:
+                handled = f"{self.question_prompt}{msg}"
             
         return handled
 

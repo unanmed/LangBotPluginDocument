@@ -7,6 +7,7 @@ from langchain_community.vectorstores import FAISS
 from .loader import CodeAwareMDLoader, CodeLoader
 from .splitter import DocumentSplitter
 from .retriever import HybridRetriever
+from .extensions.classification import Classification
 
 class DocumentParser:
     text_model: HuggingFaceEmbeddings = None
@@ -170,7 +171,7 @@ class DocumentParser:
             code_comment_docs = [Document(page_content="")]
             
         text_store = FAISS.from_documents(text_docs, self.text_model, metric="ip")
-        code_store = FAISS.from_documents(code_docs, self.code_model, metric="l2")
+        code_store = FAISS.from_documents(code_docs, self.code_model, metric="ip")
         comment_store = FAISS.from_documents(code_comment_docs, self.text_model, metric="ip")
         
         return text_store, code_store, comment_store
@@ -195,7 +196,8 @@ class DocumentParser:
         self.retriever = HybridRetriever(
             text_retriever=text_retriever,
             code_retriever=code_retriever,
-            code_comment_retriever=code_comment_retriever
+            code_comment_retriever=code_comment_retriever,
+            classification=Classification(self.root_path, self.config["extensions"]["classification"])
         )
         
         for deleted in self.deleted_docs:

@@ -1,13 +1,22 @@
 from collections import deque
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.vectorstores import VectorStoreRetriever
+from .extensions.classification import Classification
 
 class HybridRetriever(BaseRetriever):
     text_retriever: VectorStoreRetriever
     code_retriever: VectorStoreRetriever
     code_comment_retriever: VectorStoreRetriever
+    classification: Classification
+    
+    def _get_relevant_documents_classified(self, query: str):
+        text_docs = self.text_retriever.vectorstore.similarity_search_with_score(query, k=6)
+        code_docs = self.code_retriever.vectorstore.similarity_search_with_score(query, k=6)
+        comment_docs = self.code_comment_retriever.vectorstore.similarity_search_with_score(query, k=6)
         
-    def _get_relevant_documents(self, query: str):
+        return [doc[0] for doc in self.classification.classify_and_sort(query, code_docs, comment_docs, text_docs)]
+    
+    def _get_relevant_documents_defaults(self, query: str):
         res = []
 
         # 初始化 deque
@@ -39,3 +48,9 @@ class HybridRetriever(BaseRetriever):
                 break
 
         return res
+        
+    def _get_relevant_documents(self, query: str):
+        if self.classification.enabled():
+            return self._get_relevant_documents_classified(query)
+        else:
+            return self._get_relevant_documents_defaults(query)

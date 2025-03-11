@@ -9,6 +9,13 @@
     "code_context_length": 1,
     "debug": false,
     "log_queries": false,
+    "extensions": {
+        "classification": {
+            "enable": true,
+            "model_path": "./extensions/class_model",
+            "need_doc_threshold": 0.4
+        }
+    },
     "files": [
         "example.md"
     ]
