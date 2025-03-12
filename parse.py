@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS, DistanceStrategy
 from .loader import CodeAwareMDLoader, CodeLoader
 from .splitter import DocumentSplitter
 from .retriever import HybridRetriever
@@ -107,16 +107,19 @@ class DocumentParser:
             file_hash = hashlib.sha256(doc.read().encode()).hexdigest()
             
         self.indices_cache[doc_path] = {
-            "text_path": text_path,
-            "comment_path": comment_path,
-            "code_path": code_path,
+            "text_path": text_path if text_index else None,
+            "comment_path": comment_path if comment_index else None,
+            "code_path": code_path if code_index else None,
             "id": str(index_id),
             "hash": file_hash
         }
         
-        FAISS.save_local(text_index, text_path)
-        FAISS.save_local(code_index, code_path)
-        FAISS.save_local(comment_index, comment_path)
+        if text_index:
+            FAISS.save_local(text_index, text_path)
+        if code_index:
+            FAISS.save_local(code_index, code_path)
+        if comment_index:
+            FAISS.save_local(comment_index, comment_path)
             
     def load_document(self, doc_path: str, mode: str):
         path = Path(doc_path)
@@ -126,11 +129,20 @@ class DocumentParser:
             # 有缓存，直接从缓存加载
             indices = self.indices_cache.get(doc_path)
             if indices["text_path"] and os.path.exists(indices["text_path"]):
-                self.doc_text_indices.append(FAISS.load_local(indices["text_path"], self.text_model, "index", allow_dangerous_deserialization=True))
+                self.doc_text_indices.append(FAISS.load_local(
+                    indices["text_path"], self.text_model, "index", allow_dangerous_deserialization=True,
+                    distance_strategy=DistanceStrategy.COSINE
+                ))
             if indices["code_path"] and os.path.exists(indices["code_path"]):
-                self.doc_code_indices.append(FAISS.load_local(indices["code_path"], self.code_model, "index", allow_dangerous_deserialization=True))
+                self.doc_code_indices.append(FAISS.load_local(
+                    indices["code_path"], self.code_model, "index", allow_dangerous_deserialization=True,
+                    distance_strategy=DistanceStrategy.COSINE
+                ))
             if indices["comment_path"] and os.path.exists(indices["comment_path"]):
-                self.doc_comment_indices.append(FAISS.load_local(indices["comment_path"], self.text_model, "index", allow_dangerous_deserialization=True))
+                self.doc_comment_indices.append(FAISS.load_local(
+                    indices["comment_path"], self.text_model, "index", allow_dangerous_deserialization=True,
+                    distance_strategy=DistanceStrategy.COSINE
+                ))
             self.deleted_docs.remove(doc_path)
             
         else:
@@ -144,9 +156,12 @@ class DocumentParser:
                 docs = self.splitter.split_documents(loader.load(), "code-only")
                 
             text, code, comment = self.parse_one_document(docs)
-            self.doc_text_indices.append(text)
-            self.doc_code_indices.append(code)
-            self.doc_comment_indices.append(comment)
+            if text:
+                self.doc_text_indices.append(text)
+            if code:
+                self.doc_code_indices.append(code)
+            if comment:
+                self.doc_comment_indices.append(comment)
             self.cache_index(doc_path, text, code, comment)
             self.indexed += 1
             self.deleted_docs.remove(doc_path)
@@ -162,22 +177,22 @@ class DocumentParser:
                 metadata = { **doc.metadata, "code": doc.page_content }
                 metadata.pop("comments")
                 code_comment_docs.append(Document(page_content=comment, metadata=metadata))
-                
-        if not text_docs:
-            text_docs = [Document(page_content="")]
-        if not code_docs:
-            code_docs = [Document(page_content="")]
-        if not code_comment_docs:
-            code_comment_docs = [Document(page_content="")]
             
-        text_store = FAISS.from_documents(text_docs, self.text_model)
-        code_store = FAISS.from_documents(code_docs, self.code_model)
-        comment_store = FAISS.from_documents(code_comment_docs, self.text_model)
+        text_store = FAISS.from_documents(text_docs, self.text_model, distance_strategy=DistanceStrategy.COSINE) if text_docs else None
+        code_store = FAISS.from_documents(code_docs, self.code_model, distance_strategy=DistanceStrategy.COSINE) if code_docs else None
+        comment_store = FAISS.from_documents(code_comment_docs, self.text_model, distance_strategy=DistanceStrategy.COSINE) if code_comment_docs else None
         
         return text_store, code_store, comment_store
             
     def merge_documents(self):
         """将所有数据库合并"""
+        if not self.doc_code_indices:
+            self.doc_code_indices = [Document(page_content="")]
+        if not self.doc_comment_indices:
+            self.doc_comment_indices = [Document(page_content="")]
+        if not self.doc_text_indices:
+            self.doc_text_indices = [Document(page_content="")]
+        
         self.text_store = self.doc_text_indices[0]
         self.code_store = self.doc_code_indices[0]
         self.code_comment_store = self.doc_comment_indices[0]
@@ -212,7 +227,7 @@ class DocumentParser:
         if self.from_cache > 0:
             print(f"✅ Loaded {self.from_cache} stores from cache.")
         if self.indexed > 0:
-            print(f"✅ Index and cache {self.indexed} stores.")
+            print(f"✅ Index and cached {self.indexed} stores.")
             
         self.doc_code_indices.clear()
         self.doc_text_indices.clear()
