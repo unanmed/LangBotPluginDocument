@@ -1,14 +1,14 @@
 {
-    "reference_prompt": "现在用户提出了问题，如果用户没有明确提出不参考文档，请参考以下内容回答，如果仅靠以下内容无法获取正确答案，请回复“信息不足，请换个问法”：",
+    "reference_prompt": "请参考以下文档，回答用户问题：",
     "question_prompt": "用户问题：",
     "text_model": "BAAI/bge-large-zh-v1.5",
     "code_model": "microsoft/codebert-base",
-    "mode": "text-only",
+    "mode": "text-code",
     "chunk_size": 500,
     "chunk_overlap": 100,
     "code_context_length": 1,
-    "debug": false,
-    "log_queries": false,
+    "debug": true,
+    "log_queries": true,
     "extensions": {
         "classification": {
             "enable": true,
@@ -17,6 +17,38 @@
         }
     },
     "files": [
-        "example.md"
+        "editor.md",
+        "element.md",
+        "event.md",
+        "index.md",
+        "instruction.md",
+        "matters.md",
+        "minify.md",
+        "personalization.md",
+        "script.md",
+        "start.md",
+        "update_record.md",
+        "declaration/action.d.ts",
+        "declaration/control.d.ts",
+        "declaration/core.d.ts",
+        "declaration/data.d.ts",
+        "declaration/enemy.d.ts",
+        "declaration/event.d.ts",
+        "declaration/eventDec.d.ts",
+        "declaration/eventStatus.d.ts",
+        "declaration/function.d.ts",
+        "declaration/icon.d.ts",
+        "declaration/item.d.ts",
+        "declaration/loader.d.ts",
+        "declaration/map.d.ts",
+        "declaration/plugin.d.ts",
+        "declaration/source.d.ts",
+        "declaration/status.d.ts",
+        "declaration/ui.d.ts",
+        "declaration/util.d.ts",
+        "project/functions.js",
+        "project/plugins.js",
+        "plugins/audio-system.md",
+        "plugins/mutate-animate.md"
     ]
 }

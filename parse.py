@@ -186,12 +186,13 @@ class DocumentParser:
             
     def merge_documents(self):
         """将所有数据库合并"""
+        text, code, comment = self.parse_one_document([Document(page_content="")])
         if not self.doc_code_indices:
-            self.doc_code_indices = [Document(page_content="")]
+            self.doc_code_indices = [text]
         if not self.doc_comment_indices:
-            self.doc_comment_indices = [Document(page_content="")]
+            self.doc_comment_indices = [code]
         if not self.doc_text_indices:
-            self.doc_text_indices = [Document(page_content="")]
+            self.doc_text_indices = [comment]
         
         self.text_store = self.doc_text_indices[0]
         self.code_store = self.doc_code_indices[0]
