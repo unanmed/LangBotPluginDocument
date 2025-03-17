@@ -60,16 +60,25 @@ class DocumentParser:
         for file in self.config["files"]:
             if not isinstance(file, str):
                 modes.add(file["mode"])
+            elif not file.endswith(".md"):
+                modes.add("code-only")
         
         # 判断是否需要文本或代码模型
         need_text = "text-only" in modes or "text-code" in modes
         need_code = "code-only" in modes or "text-code" in modes
-
+        
+        if need_text and need_code:
+            print("Using text model and code model to parse documents.")
+        elif need_text and not need_code:
+            print("Using text model to parse documents.")
+        elif not need_text and need_code:
+            print("Using code model to parse documents.")
+            
         # 加载模型，暂时两个模型都加载，之后再优化为按需加载
-        # if need_text:
-        self.text_model = HuggingFaceEmbeddings(model_name=self.config["text_model"])
-        # if need_code:
-        self.code_model = HuggingFaceEmbeddings(model_name=self.config["code_model"])
+        if need_text:
+            self.text_model = HuggingFaceEmbeddings(model_name=self.config["text_model"])
+        if need_code:
+            self.code_model = HuggingFaceEmbeddings(model_name=self.config["code_model"])
             
     def check_cache(self, doc_path: str) -> bool:
         """检查一个文档的缓存是否存在，以及是否需要重新索引"""
@@ -183,27 +192,22 @@ class DocumentParser:
         comment_store = FAISS.from_documents(code_comment_docs, self.text_model, distance_strategy=DistanceStrategy.COSINE) if code_comment_docs else None
         
         return text_store, code_store, comment_store
+    
+    def merge_documents_one(self, indices: list[FAISS]):
+        if not indices:
+            return None
+        store = indices[0]
+        if not store:
+            return None
+        for one in indices[1:]:
+            store.merge_from(one)
+        return store
             
     def merge_documents(self):
         """将所有数据库合并"""
-        text, code, comment = self.parse_one_document([Document(page_content="")])
-        if not self.doc_code_indices:
-            self.doc_code_indices = [text]
-        if not self.doc_comment_indices:
-            self.doc_comment_indices = [code]
-        if not self.doc_text_indices:
-            self.doc_text_indices = [comment]
-        
-        self.text_store = self.doc_text_indices[0]
-        self.code_store = self.doc_code_indices[0]
-        self.code_comment_store = self.doc_comment_indices[0]
-        
-        for text in self.doc_text_indices[1:]:
-            self.text_store.merge_from(text)
-        for code in self.doc_code_indices[1:]:
-            self.code_store.merge_from(code)
-        for comment in self.doc_comment_indices[1:]:
-            self.code_comment_store.merge_from(comment)
+        self.text_store = self.merge_documents_one(self.doc_text_indices)
+        self.code_store = self.merge_documents_one(self.doc_code_indices)
+        self.code_comment_store = self.merge_documents_one(self.doc_comment_indices)
             
         text_retriever = self.text_store.as_retriever() if self.text_store else None
         code_retriever = self.code_store.as_retriever() if self.code_store else None
@@ -237,5 +241,5 @@ class DocumentParser:
         return self.indices_cache
 
     def search(self, message: str) -> list[Document]:
-        return self.retriever.invoke(message)
+        return self.retriever.search(message)
     
