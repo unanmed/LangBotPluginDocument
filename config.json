@@ -11,7 +11,7 @@
     "log_queries": false,
     "extensions": {
         "classification": {
-            "enable": true,
+            "enable": false,
             "model_path": "./extensions/class_model",
             "need_doc_threshold": 0.4
         }

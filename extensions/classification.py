@@ -7,14 +7,17 @@ class Classification:
     
     def __init__(self, root: str, config: object):
         self.config = config
-        model_path = os.path.join(root, config.get("model_path"))
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        if self.enabled():
+            model_path = os.path.join(root, config.get("model_path"))
+            self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         
     def enabled(self):
         return self.config.get("enable", False)
     
     def classify_and_sort(self, query: str, code: list, comment: list, text: list):
+        if not self.enabled():
+            return []
         # 编码输入
         inputs = self.tokenizer(query, return_tensors="pt", truncation=True, padding=True)
         
