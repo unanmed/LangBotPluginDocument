@@ -81,7 +81,7 @@ class LangBotPluginDocument(BasePlugin):
         
         if self.log_queries:
             with open(self.log_path, 'a', encoding='utf-8') as f:
-                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Query: {msg.replace("\n", "\\n")}\n")
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Query: {msg.replace('\n', '\\n')}\n")
         
         if msg.startswith("*raw"):
             handled = f"{self.question_prompt}{msg[4:]}"
