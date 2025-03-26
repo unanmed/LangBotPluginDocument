@@ -69,7 +69,7 @@ class LangBotPluginDocument(BasePlugin):
         docs = self.parser.search(message)
         text = "\n---\n".join(
             f"{doc.metadata.get('prev_context', '')}\n"
-            f"{doc.metadata.get("code", doc.page_content)}\n"
+            f"{doc.metadata.get('code', doc.page_content)}\n"
             f"{doc.metadata.get('next_context', '')}"
             for doc in docs
         )
