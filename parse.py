@@ -64,10 +64,10 @@ class DocumentParser:
         
         self.root_path = root
         self.deleted_docs = { os.path.join(root, 'docs', path) for path in config["files"] }
-        if len(indices_cache['data']) == 0:
+        if len(self.indices_cache['data']) == 0:
             self.max_id = 0
         else:
-            self.max_id = max([int(index["id"]) for index in indices_cache['data'].values()])
+            self.max_id = max([int(index["id"]) for index in self.indices_cache['data'].values()])
         self.splitter = DocumentSplitter(
             code_context_length=config["code_context_length"],
             chunk_size=config["chunk_size"],
