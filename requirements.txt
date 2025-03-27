@@ -13,3 +13,4 @@ tree-sitter-python==0.23.6
 tree-sitter-html==0.23.2
 transformers==4.49.0
 torch==2.6.0
+watchdog==4.0.1

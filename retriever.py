@@ -1,28 +1,28 @@
 from collections import deque
 from langchain_core.vectorstores import VectorStoreRetriever
+from langchain_community.vectorstores import FAISS
 from .extensions.classification import Classification
 
 class HybridRetriever:
-    text_retriever: VectorStoreRetriever
-    code_retriever: VectorStoreRetriever
-    code_comment_retriever: VectorStoreRetriever
+    text_store: FAISS
+    code_store: FAISS
+    code_comment_store: FAISS
     classification: Classification
     
     def __init__(
-        self, text_retriever: VectorStoreRetriever,
-        code_retriever: VectorStoreRetriever,
-        code_comment_retriever: VectorStoreRetriever,
+        self,
+        text_store: FAISS, code_store: FAISS, code_comment_store: FAISS,
         classification: Classification
     ):
-        self.text_retriever = text_retriever
-        self.code_retriever = code_retriever
-        self.code_comment_retriever = code_comment_retriever
+        self.text_store = text_store
+        self.code_store = code_store
+        self.code_comment_store = code_comment_store
         self.classification = classification
     
     def _get_relevant_documents_classified(self, query: str):
-        text_docs = self.text_retriever.vectorstore.similarity_search_with_score(query, k=6)
-        code_docs = self.code_retriever.vectorstore.similarity_search_with_score(query, k=6)
-        comment_docs = self.code_comment_retriever.vectorstore.similarity_search_with_score(query, k=6)
+        text_docs = self.text_store.similarity_search_with_score(query, k=6)
+        code_docs = self.code_store.similarity_search_with_score(query, k=6)
+        comment_docs = self.code_comment_store.similarity_search_with_score(query, k=6)
         
         return [doc[0] for doc in self.classification.classify_and_sort(query, code_docs, comment_docs, text_docs)]
     
@@ -30,9 +30,9 @@ class HybridRetriever:
         res = []
 
         # 初始化 deque
-        text_docs = deque(self.text_retriever.invoke(query)) if self.text_retriever else deque()
-        code_docs = deque(self.code_retriever.invoke(query)) if self.code_retriever else deque()
-        code_comment_docs = deque(self.code_comment_retriever.invoke(query)) if self.code_comment_retriever else deque()
+        text_docs = deque(self.text_store.similarity_search(query, k=6)) if self.text_store else deque()
+        code_docs = deque(self.code_store.similarity_search(query)) if self.code_store else deque()
+        code_comment_docs = deque(self.code_comment_store.similarity_search(query)) if self.code_comment_store else deque()
 
         # 如果所有检索器为空，直接返回空列表
         if not any([text_docs, code_docs, code_comment_docs]):

@@ -1,5 +1,8 @@
 import hashlib
 import os
+import traceback
+import json
+from tqdm import tqdm
 from pathlib import Path
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
@@ -7,7 +10,13 @@ from langchain_community.vectorstores import FAISS, DistanceStrategy
 from .loader import CodeAwareMDLoader, CodeLoader
 from .splitter import DocumentSplitter
 from .retriever import HybridRetriever
+from .watcher import DocumentWatcher
 from .extensions.classification import Classification
+
+def is_path_in_directory(path, directory):
+    # 计算公共前缀
+    common_path = os.path.commonpath([os.path.abspath(path), os.path.abspath(directory)])
+    return common_path == os.path.abspath(directory)
 
 class DocumentParser:
     text_model: HuggingFaceEmbeddings = None
@@ -23,8 +32,10 @@ class DocumentParser:
     retriever: HybridRetriever = None
     
     root_path: str = None
+    indices_path: str = None
     config: object = None
     indices_cache: dict[str, object] = None
+    doc_ids: dict[str, tuple[list[str], list[str], list[str]]] = dict()
     doc_text_indices: list[FAISS] = list()
     doc_code_indices: list[FAISS] = list()
     doc_comment_indices: list[FAISS] = list()
@@ -37,20 +48,45 @@ class DocumentParser:
     new_doc: int = 0
     indexed: int = 0
     
-    def __init__(self, config, indices_cache: dict[str, object], root: str):
+    watcher: DocumentWatcher
+    
+    def __init__(self, config, indices_cache: dict[str, object], root: str, indices_path: str):
+        for i, path in enumerate(config['files']):
+            config['files'][i] = os.path.normpath(path)
+        
         self.config = config
         self.indices_cache = indices_cache
+        self.indices_path = indices_path
+        
+        # 检查索引缓存的格式
+        self.check_indices_cache()
+        self.doc_ids = self.indices_cache['doc_ids']
+        
         self.root_path = root
         self.deleted_docs = { os.path.join(root, 'docs', path) for path in config["files"] }
-        if len(indices_cache) == 0:
+        if len(indices_cache['data']) == 0:
             self.max_id = 0
         else:
-            self.max_id = max([int(index["id"]) for index in indices_cache.values()])
+            self.max_id = max([int(index["id"]) for index in indices_cache['data'].values()])
         self.splitter = DocumentSplitter(
             code_context_length=config["code_context_length"],
             chunk_size=config["chunk_size"],
             chunk_overlap=config["chunk_overlap"]
         )
+        self.watcher = DocumentWatcher(root, os.path.join(root, 'docs'), self)
+        
+    def check_indices_cache(self):
+        cache = self.indices_cache
+        
+        if cache.get('data') is None:
+            # 如果 data 是 None 的话，说明是旧版缓存，但是由于新版更改了内容，没办法沿用旧版缓存，因此直接删除
+            cache = dict()
+            cache['data'] = dict()
+            cache['doc_ids'] = dict()
+        
+        # 给缓存加个版本信息，方便后续更新
+        cache['version'] = 1
+        self.indices_cache = cache
     
     def fetch_models(self):
         """根据配置信息获取需要的模型"""
@@ -82,10 +118,13 @@ class DocumentParser:
             
     def check_cache(self, doc_path: str) -> bool:
         """检查一个文档的缓存是否存在，以及是否需要重新索引"""
-        indices = self.indices_cache.get(doc_path)
+        indices = self.indices_cache['data'].get(doc_path)
         
         if not indices:
             self.new_doc += 1
+            return False
+        
+        if not os.path.exists(doc_path):
             return False
         
         with open(doc_path, 'r', encoding='utf-8') as doc:
@@ -101,21 +140,21 @@ class DocumentParser:
     def cache_index(self, doc_path: str, text_index: FAISS, code_index: FAISS, comment_index: FAISS):
         """将一个索引写入缓存"""
         
-        indices = self.indices_cache.get(doc_path)
+        indices = self.indices_cache['data'].get(doc_path)
         if indices:
             index_id = indices["id"]
         else:
             self.max_id += 1
             index_id = self.max_id
             
-        text_path = os.path.join(self.root_path, "data/text", f"doc_{index_id}")
-        code_path = os.path.join(self.root_path, "data/code", f"doc_{index_id}")
-        comment_path = os.path.join(self.root_path, "data/comment", f"doc_{index_id}")
+        text_path = os.path.join(self.root_path, "data\\text", f"doc_{index_id}")
+        code_path = os.path.join(self.root_path, "data\\code", f"doc_{index_id}")
+        comment_path = os.path.join(self.root_path, "data\\comment", f"doc_{index_id}")
         
         with open(doc_path, 'r', encoding='utf-8') as doc:
             file_hash = hashlib.sha256(doc.read().encode()).hexdigest()
             
-        self.indices_cache[doc_path] = {
+        self.indices_cache['data'][doc_path] = {
             "text_path": text_path if text_index else None,
             "comment_path": comment_path if comment_index else None,
             "code_path": code_path if code_index else None,
@@ -130,29 +169,39 @@ class DocumentParser:
         if comment_index:
             FAISS.save_local(comment_index, comment_path)
             
-    def load_document(self, doc_path: str, mode: str):
+    def load_document(self, doc_path: str, mode: str, nocache=False):
         path = Path(doc_path)
         ext = path.suffix
+        if not os.path.exists(doc_path):
+            tqdm.write(f'Warn: File {doc_path} does not exists.')
+            return
         
-        if self.check_cache(doc_path):
+        if self.check_cache(doc_path) and not nocache:
             # 有缓存，直接从缓存加载
-            indices = self.indices_cache.get(doc_path)
+            indices = self.indices_cache['data'].get(doc_path)
+            text = None
+            code = None
+            comment = None
             if indices["text_path"] and os.path.exists(indices["text_path"]):
-                self.doc_text_indices.append(FAISS.load_local(
+                text = FAISS.load_local(
                     indices["text_path"], self.text_model, "index", allow_dangerous_deserialization=True,
                     distance_strategy=DistanceStrategy.COSINE
-                ))
+                )
+                self.doc_text_indices.append(text)
             if indices["code_path"] and os.path.exists(indices["code_path"]):
-                self.doc_code_indices.append(FAISS.load_local(
+                code = FAISS.load_local(
                     indices["code_path"], self.code_model, "index", allow_dangerous_deserialization=True,
                     distance_strategy=DistanceStrategy.COSINE
-                ))
+                )
+                self.doc_code_indices.append(code)
             if indices["comment_path"] and os.path.exists(indices["comment_path"]):
-                self.doc_comment_indices.append(FAISS.load_local(
+                comment = FAISS.load_local(
                     indices["comment_path"], self.text_model, "index", allow_dangerous_deserialization=True,
                     distance_strategy=DistanceStrategy.COSINE
-                ))
+                )
+                self.doc_comment_indices.append(comment)
             self.deleted_docs.remove(doc_path)
+            return text, code, comment
             
         else:
             # 没有缓存，加载文档并索引
@@ -164,7 +213,7 @@ class DocumentParser:
                 loader = CodeLoader(path)
                 docs = self.splitter.split_documents(loader.load(), "code-only")
                 
-            text, code, comment = self.parse_one_document(docs)
+            text, code, comment = self.parse_one_document(docs, doc_path)
             if text:
                 self.doc_text_indices.append(text)
             if code:
@@ -173,9 +222,12 @@ class DocumentParser:
                 self.doc_comment_indices.append(comment)
             self.cache_index(doc_path, text, code, comment)
             self.indexed += 1
-            self.deleted_docs.remove(doc_path)
+            if doc_path in self.deleted_docs:
+                self.deleted_docs.remove(doc_path)
+                
+            return text, code, comment
 
-    def parse_one_document(self, docs: list[Document]):
+    def parse_one_document(self, docs: list[Document], path: str):
         text_docs = [doc for doc in docs if not doc.metadata.get("is_code", False)]
         code_docs = [doc for doc in docs if doc.metadata.get("is_code", False)]
         
@@ -186,12 +238,86 @@ class DocumentParser:
                 metadata = { **doc.metadata, "code": doc.page_content }
                 metadata.pop("comments")
                 code_comment_docs.append(Document(page_content=comment, metadata=metadata))
-            
+        
+        path = os.path.normpath(os.path.relpath(path, self.root_path))
+        self.doc_ids[path] = (list(), list(), list())
+        i = 0
+        for type, docs in enumerate([text_docs, code_docs, code_comment_docs]):
+            for doc in docs:
+                doc.id = f"{path}-{i}"
+                self.doc_ids[path][type].append(doc.id)
+                i += 1
+        
         text_store = FAISS.from_documents(text_docs, self.text_model, distance_strategy=DistanceStrategy.COSINE) if text_docs else None
         code_store = FAISS.from_documents(code_docs, self.code_model, distance_strategy=DistanceStrategy.COSINE) if code_docs else None
         comment_store = FAISS.from_documents(code_comment_docs, self.text_model, distance_strategy=DistanceStrategy.COSINE) if code_comment_docs else None
         
         return text_store, code_store, comment_store
+    
+    def reindex(self, data: list[tuple[str, str]]):
+        for path, mode in tqdm(data, leave=False, desc='Reindexing'):
+            try:
+                self.reindex_document(path, mode)
+            except Exception as e:
+                print(f'Reindex document "{path}" failed. exception: {e}')
+                traceback.print_exc()
+        print(f"✅ Reindexed {len(data)} documents.")
+        
+        with open(os.path.join(self.root_path, 'config.json'), 'w') as f:
+            json.dump(self.config, f, indent=4)
+        with open(self.indices_path, 'w') as f:
+            json.dump(self.indices_cache, f, indent=4)
+        
+        self.doc_code_indices.clear()
+        self.doc_text_indices.clear()
+        self.doc_comment_indices.clear()
+    
+    def reindex_document(self, doc_path: str, mode: str):
+        path = os.path.normpath(os.path.relpath(doc_path, self.root_path))
+        doc_rel_path = os.path.normpath(os.path.relpath(doc_path, os.path.join(self.root_path, 'docs')))
+        ids = self.doc_ids.get(path)
+        if not is_path_in_directory(doc_path, os.path.join(self.root_path, 'docs')):
+            return
+
+        if mode == 'add':
+            # 添加新文档
+            text, code, comment = self.load_document(os.path.join(self.root_path, doc_path), self.config['mode'], True)
+            if text:
+                self.text_store.merge_from(text)
+            if code:
+                self.code_store.merge_from(code)
+            if comment:
+                self.code_comment_store.merge_from(comment)
+            self.config['files'].append(os.path.normpath(os.path.relpath(doc_path, os.path.join(self.root_path, 'docs'))))
+            
+        elif mode == 'delete':
+            # 删除文档
+            if ids is None:
+                print(f'Warn: Cannot get document identifier for "{doc_path}". This may be a bug for LangBotPluginDocument. Please open an issue with a screenshot for call stack.')
+                traceback.print_stack()
+                return
+                
+            text_ids, code_ids, comment_ids = ids
+            if len(text_ids) > 0:
+                self.text_store.delete(text_ids)
+            if len(code_ids) > 0:
+                self.code_store.delete(code_ids)
+            if len(comment_ids) > 0:
+                self.code_comment_store.delete(comment_ids)
+            # 缓存也得删
+            abs_path = os.path.join(self.root_path, path)
+            if self.indices_cache['data'].get(abs_path):
+                self.indices_cache['data'].pop(abs_path)
+            if self.doc_ids.get(path):
+                self.doc_ids.pop(path)
+            if doc_rel_path in self.config['files']:
+                self.config['files'].remove(doc_rel_path)
+            
+        elif mode == 'modify':
+            # 修改文档，先删除再添加
+            if ids is not None:
+                self.reindex_document(doc_path, 'delete')
+            self.reindex_document(doc_path, 'add')
     
     def merge_documents_one(self, indices: list[FAISS]):
         if not indices:
@@ -208,20 +334,17 @@ class DocumentParser:
         self.text_store = self.merge_documents_one(self.doc_text_indices)
         self.code_store = self.merge_documents_one(self.doc_code_indices)
         self.code_comment_store = self.merge_documents_one(self.doc_comment_indices)
-            
-        text_retriever = self.text_store.as_retriever() if self.text_store else None
-        code_retriever = self.code_store.as_retriever() if self.code_store else None
-        code_comment_retriever = self.code_comment_store.as_retriever() if self.code_comment_store else None
 
         self.retriever = HybridRetriever(
-            text_retriever=text_retriever,
-            code_retriever=code_retriever,
-            code_comment_retriever=code_comment_retriever,
+            text_store=self.text_store,
+            code_store=self.code_store,
+            code_comment_store=self.code_comment_store,
             classification=Classification(self.root_path, self.config["extensions"]["classification"])
         )
         
         for deleted in self.deleted_docs:
-            self.indices_cache.pop(deleted)
+            if self.indices_cache['data'].get(deleted):
+                self.indices_cache['data'].pop(deleted)
         
         if self.new_doc > 0:
             print(f"✅ Find {self.new_doc} new documents.")

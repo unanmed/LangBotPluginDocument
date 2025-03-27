@@ -1,4 +1,5 @@
 import re
+from tqdm import tqdm
 from pathlib import Path
 from langchain_community.document_loaders.base import BaseLoader
 from langchain.schema import Document
@@ -77,6 +78,6 @@ class CodeLoader(BaseLoader):
             metadata = {"is_code": True, "source": self.file_path, "code_language": languages_map[ext]}
             return [Document(page_content=code_content, metadata=metadata)]
         else:
-            print(f"Warn: Unknown file extension '{ext}', please refer to README and splitter.py to find solutions.")
+            tqdm.write(f"Warn: Unknown file extension '{ext}', please refer to README and splitter.py to find solutions.")
             metadata = {"is_code": True, "source": self.file_path, "code_language": languages_map["text"]}
             return [Document(page_content=code_content, metadata=metadata)]

@@ -1,4 +1,5 @@
 from typing import Iterable
+from tqdm import tqdm
 from langchain.schema import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter, TextSplitter
 from tree_sitter_javascript import language as language_javascript
@@ -315,7 +316,7 @@ class DocumentSplitter(TextSplitter):
                         splitter = self.split_code
                     else:
                         splitter = self.split_text_content
-                        print(f"Warn: Unknown code language: {lang}. Please refer to README to find solution.")
+                        tqdm.write(f"Warn: Unknown code language: {lang}. Please refer to README to find solution.")
                     
                 else:
                     splitter = self.split_text_content

@@ -37,7 +37,7 @@ class LangBotPluginDocument(BasePlugin):
         with open(indices_path, 'r', encoding='utf-8') as indices:
             indices_cache = json.load(indices)
             
-        self.parser = DocumentParser(data, indices_cache, self.current_dir)
+        self.parser = DocumentParser(data, indices_cache, self.current_dir, indices_path)
         
         self.reference_prompt = data["reference_prompt"]
         self.question_prompt = data["question_prompt"]
@@ -58,6 +58,9 @@ class LangBotPluginDocument(BasePlugin):
         
         with open(indices_path, 'w', encoding='utf-8') as indices:
             json.dump(cache, indices, ensure_ascii=False, indent=4)
+            
+        # 初始化加载完毕后再开始监听
+        self.parser.watcher.start()
 
         print("=============== Loaded LangBot Document Plugin ===============")
 
@@ -112,4 +115,4 @@ class LangBotPluginDocument(BasePlugin):
             print(handled)
 
     def __del__(self):
-        pass
+        self.parser.watcher.end()
