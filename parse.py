@@ -2,6 +2,7 @@ import hashlib
 import os
 import traceback
 import json
+import shutil
 from tqdm import tqdm
 from pathlib import Path
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -74,6 +75,7 @@ class DocumentParser:
             chunk_overlap=config["chunk_overlap"]
         )
         self.watcher = DocumentWatcher(root, os.path.join(root, 'docs'), self)
+        self.clear_cache()
         
     def check_indices_cache(self):
         cache = self.indices_cache
@@ -87,6 +89,27 @@ class DocumentParser:
         # 给缓存加个版本信息，方便后续更新
         cache['version'] = 1
         self.indices_cache = cache
+        
+    def clear_cache(self):
+        """清理多余的缓存"""
+        code_cache = os.path.join(self.root_path, 'data', 'code')
+        comment_cache = os.path.join(self.root_path, 'data', 'comment')
+        text_cache = os.path.join(self.root_path, 'data', 'text')
+        ids = [f'doc_{index["id"]}' for index in self.indices_cache['data'].values()]
+        
+        to_delete = list()
+        for code in os.listdir(code_cache):
+            if not code in ids:
+                to_delete.append(os.path.join(code_cache, code))
+        for comment in os.listdir(comment_cache):
+            if not comment in ids:
+                to_delete.append(os.path.join(comment_cache, comment))
+        for text in os.listdir(text_cache):
+            if not text in ids:
+                to_delete.append(os.path.join(text_cache, text))
+                
+        for path in to_delete:
+            shutil.rmtree(path)
     
     def fetch_models(self):
         """根据配置信息获取需要的模型"""
