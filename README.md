@@ -79,6 +79,14 @@ f"{reference_prompt}\n{查询到的文档内容}\n{question_prompt}{用户提问
 
 代码中的注释可以使用中文。
 
+## 指令
+
+本插件添加了一些指令：
+
+1. `!document`:
+    1. `!document list`: 列出当前所有文档
+    2. `!document append <文档名称> <追加内容>`: 在一个文档后面追加新内容，例如 `!document append example.md ## 测试标题\n\n测试内容`
+
 ## 一些推荐模型
 
 中文文档模型：`BAAI/bge-m3`, `BAAI/bge-large-zh-v1.5`, `moka-ai/m3e-base`
