@@ -1,7 +1,6 @@
 import os
 import asyncio
 import threading
-import watchdog.events as ev
 from watchdog.observers import Observer
 from watchdog.observers.api import BaseObserver
 from watchdog.events import FileSystemEventHandler
@@ -10,21 +9,6 @@ DEBOUNCE_TIME = 5
 
 def find_index(lst, condition):
     return next((i for i, x in enumerate(lst) if condition(x)), -1)
-
-class Debounce:
-    def __init__(self, func, wait):
-        self.func = func
-        self.wait = wait
-        self.task = None
-
-    def __call__(self, *args, **kwargs):
-        if self.task:
-            self.task.cancel()
-        self.task = asyncio.create_task(self._debounce(*args, **kwargs))
-
-    async def _debounce(self, *args, **kwargs):
-        await asyncio.sleep(self.wait)
-        self.func(*args, **kwargs)
         
 class DocumentHandler(FileSystemEventHandler):
     root: str
@@ -75,22 +59,21 @@ class DocumentWatcher:
         self.handler = DocumentHandler(root, self)
         self.observer.schedule(self.handler, path, recursive=True)
         
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        
         # 在独立线程中运行事件循环
         self.thread = threading.Thread(target=self.start_loop, daemon=True)
         self.thread.start()
         
     def start_loop(self):
         """ 事件循环在独立线程中运行 """
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
         
     def update_store(self, mode: str, path: str):
         if self.reindex_task:
             self.reindex_task.cancel()
         else:
-            print("Received document update, waiting for reindexing...")
+            print("Received document update, waiting for reindexing...", flush=True)
             
         # 将文件修改操作添加至列表
         idx = find_index(self.reindex_list, lambda x: x[0] == path)

@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from datetime import datetime
 from tqdm import tqdm
 from pkg.plugin.context import register, handler, llm_func, BasePlugin, APIHost, EventContext
@@ -79,7 +80,7 @@ class LangBotPluginDocument(BasePlugin):
 
         return text
     
-    def handle_message(self, msg: str):
+    def handle_message(self, msg: str, raw: bool):
         handled = msg.strip()
         
         if self.log_queries:
@@ -87,7 +88,7 @@ class LangBotPluginDocument(BasePlugin):
                 content = msg.replace('\n', '\\n')
                 f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Query: {content}\n")
         
-        if msg.startswith("*raw"):
+        if raw:
             handled = f"{self.question_prompt}{msg[4:]}"
         else:
             context = self.handle_RAG(msg)
@@ -97,23 +98,30 @@ class LangBotPluginDocument(BasePlugin):
                 handled = f"{self.question_prompt}{msg}"
             
         return handled
+    
+    def check_mode(self, msg: str) -> str:
+        if msg.startswith("*raw"):
+            return "raw"
+        return "normal"
+    
+    def send_message(self, msg: str, mode: str, ctx: EventContext):
+        if mode == "raw" or mode == "normal":
+            handled = self.handle_message(msg, mode == "raw")
+            ctx.event.alter = handled
+            if self.debug:
+                print(handled)
 
     @handler(PersonNormalMessageReceived)
     async def person_normal_message_received(self, ctx: EventContext):
         msg = ctx.event.text_message.strip()
-        handled = self.handle_message(msg)
-        ctx.event.alter = handled
-        if self.debug:
-            print(handled)
-        
+        mode = self.check_mode(msg)
+        self.send_message(msg, mode, ctx)
 
     @handler(GroupNormalMessageReceived)
     async def group_normal_message_received(self, ctx: EventContext):
         msg = ctx.event.text_message.strip()
-        handled = self.handle_message(msg)
-        ctx.event.alter = handled
-        if self.debug:
-            print(handled)
+        mode = self.check_mode(msg)
+        self.send_message(msg, mode, ctx)
 
     def __del__(self):
         self.parser.watcher.end()
